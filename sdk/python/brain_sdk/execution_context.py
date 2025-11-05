@@ -160,7 +160,9 @@ class ExecutionContext:
         )
 
     @classmethod
-    def new_root(cls, agent_node_id: str, reasoner_name: str = "root") -> "ExecutionContext":
+    def new_root(
+        cls, agent_node_id: str, reasoner_name: str = "root"
+    ) -> "ExecutionContext":
         """Create a brand-new root execution context for manual invocation."""
 
         from .agent_registry import get_current_agent_instance
@@ -192,8 +194,8 @@ class ExecutionContextManager:
     """Async-safe access to the current execution context."""
 
     def __init__(self) -> None:
-        self._context_var: contextvars.ContextVar[Optional[ExecutionContext]] = contextvars.ContextVar(
-            "execution_context", default=None
+        self._context_var: contextvars.ContextVar[Optional[ExecutionContext]] = (
+            contextvars.ContextVar("execution_context", default=None)
         )
 
     def get_current_context(self) -> Optional[ExecutionContext]:

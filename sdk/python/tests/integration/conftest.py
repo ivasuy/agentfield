@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 import os
 import platform
@@ -9,11 +11,14 @@ import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Generator, Optional
+from typing import TYPE_CHECKING, Callable, Generator, Optional
 
 import pytest
 import requests
 import uvicorn
+
+if TYPE_CHECKING:
+    from brain_sdk.agent import Agent
 
 
 def _find_free_port() -> int:
@@ -190,7 +195,7 @@ def brain_server(
 
 @dataclass
 class AgentRuntime:
-    agent: "Agent"
+    agent: Agent
     base_url: str
     port: int
     server: uvicorn.Server
@@ -199,9 +204,9 @@ class AgentRuntime:
 
 
 @pytest.fixture
-def run_agent() -> Generator[Callable[["Agent", Optional[int]], AgentRuntime], None, None]:
-    from brain_sdk.agent import Agent  # Deferred import to avoid circulars during collection
-
+def run_agent() -> Generator[
+    Callable[[Agent, Optional[int]], AgentRuntime], None, None
+]:
     runtimes: list[AgentRuntime] = []
 
     def _start(agent: Agent, port: Optional[int] = None) -> AgentRuntime:
@@ -225,7 +230,9 @@ def run_agent() -> Generator[Callable[["Agent", Optional[int]], AgentRuntime], N
             loop.run_until_complete(server.serve())
             loop.close()
 
-        thread = threading.Thread(target=_run, name=f"uvicorn-{assigned_port}", daemon=True)
+        thread = threading.Thread(
+            target=_run, name=f"uvicorn-{assigned_port}", daemon=True
+        )
         thread.start()
 
         health_url = f"{base_url}/health"

@@ -14,11 +14,15 @@ class AgentWorkflow:
     def __init__(self, agent_instance):
         self.agent = agent_instance
 
-    def replace_function_references(self, original_func: Callable, tracked_func: Callable, func_name: str) -> None:
+    def replace_function_references(
+        self, original_func: Callable, tracked_func: Callable, func_name: str
+    ) -> None:
         """Replace the agent attribute with the tracked wrapper."""
         setattr(self.agent, func_name, tracked_func)
 
-    async def execute_with_tracking(self, original_func: Callable, args: tuple, kwargs: dict) -> Any:
+    async def execute_with_tracking(
+        self, original_func: Callable, args: tuple, kwargs: dict
+    ) -> Any:
         """
         Execute the wrapped function, awaiting the result when necessary.
 
@@ -35,7 +39,9 @@ class AgentWorkflow:
             return result
         except Exception:
             if getattr(self.agent, "dev_mode", False):
-                log_debug("AgentWorkflow caught exception during execution", exc_info=True)
+                log_debug(
+                    "AgentWorkflow caught exception during execution", exc_info=True
+                )
             raise
 
     async def notify_call_start(self, *args, **kwargs) -> None:

@@ -17,27 +17,30 @@ from .execution_context import (
     reset_execution_context,
 )
 from .agent_registry import get_current_agent_instance
-from .types import ReasonerDefinition, SkillDefinition
+from .types import ReasonerDefinition
 from .pydantic_utils import convert_function_args, should_convert_args
 from pydantic import ValidationError
 
 
-def reasoner(func=None, *, 
-             path: Optional[str] = None,
-             tags: Optional[List[str]] = None,
-             description: Optional[str] = None,
-             track_workflow: bool = True,
-             **kwargs):
+def reasoner(
+    func=None,
+    *,
+    path: Optional[str] = None,
+    tags: Optional[List[str]] = None,
+    description: Optional[str] = None,
+    track_workflow: bool = True,
+    **kwargs,
+):
     """
     Enhanced reasoner decorator with automatic workflow tracking and full feature support.
-    
+
     Supports both:
     @reasoner                           # Default: track_workflow=True
     @reasoner(track_workflow=False)     # Explicit: disable tracking
     @reasoner(path="/custom/path")      # Custom endpoint path
     @reasoner(tags=["ai", "nlp"])       # Tags for organization
     @reasoner(description="...")        # Custom description
-    
+
     Args:
         func: The function to decorate (when used without parentheses)
         path: Custom API endpoint path for this reasoner
@@ -45,10 +48,11 @@ def reasoner(func=None, *,
         description: Description of what this reasoner does
         track_workflow: Whether to enable automatic workflow tracking (default: True)
         **kwargs: Additional metadata to store with the reasoner
-    
+
     Returns:
         Decorated function with workflow tracking capabilities and full metadata support
     """
+
     def decorator(f: Callable) -> Callable:
         @functools.wraps(f)
         async def wrapper(*args, **kwargs):
@@ -61,7 +65,7 @@ def reasoner(func=None, *,
                     return await f(*args, **kwargs)
                 else:
                     return f(*args, **kwargs)
-        
+
         # Store comprehensive metadata on the function
         wrapper._is_reasoner = True
         wrapper._track_workflow = track_workflow
@@ -69,14 +73,16 @@ def reasoner(func=None, *,
         wrapper._original_func = f
         wrapper._reasoner_path = path
         wrapper._reasoner_tags = tags or []
-        wrapper._reasoner_description = description or f.__doc__ or f"Reasoner: {f.__name__}"
-        
+        wrapper._reasoner_description = (
+            description or f.__doc__ or f"Reasoner: {f.__name__}"
+        )
+
         # Store any additional metadata
         for key, value in kwargs.items():
             setattr(wrapper, f"_reasoner_{key}", value)
-        
+
         return wrapper
-    
+
     # Handle both @reasoner and @reasoner(...) syntax
     if func is None:
         # Called as @reasoner(track_workflow=False) or @reasoner(path="/custom")
@@ -89,28 +95,28 @@ def reasoner(func=None, *,
 async def _execute_with_tracking(func: Callable, *args, **kwargs) -> Any:
     """
     Core function that handles automatic workflow tracking for reasoner calls.
-    
+
     Args:
         func: The reasoner function to execute
         *args: Positional arguments for the function
         **kwargs: Keyword arguments for the function
-        
+
     Returns:
         The result of the function execution
     """
     # Get current execution context
     current_context = get_current_context()
-    
+
     # Get agent instance (from context or global registry)
     agent_instance = get_current_agent_instance()
-    
+
     if not agent_instance:
         # No agent context - execute without tracking
         if asyncio.iscoroutinefunction(func):
             return await func(*args, **kwargs)
         else:
             return func(*args, **kwargs)
-    
+
     # Generate execution metadata
     # Build a child context when executing under an existing workflow; otherwise create a root context
     if current_context:
@@ -140,53 +146,56 @@ async def _execute_with_tracking(func: Callable, *args, **kwargs) -> Any:
     previous_agent_context = getattr(agent_instance, "_current_execution_context", None)
     agent_instance._current_execution_context = execution_context
 
-    input_data = {"args": args, "kwargs": kwargs}
-
+    token = None
     try:
         # Execute function with new context
         token = set_execution_context(execution_context)
-        try:
-            # Inject execution_context if the function accepts it
-            sig = inspect.signature(func)
-            if "execution_context" in sig.parameters:
-                kwargs["execution_context"] = execution_context
-            
-            # 🔥 NEW: Automatic Pydantic model conversion (FastAPI-like behavior)
-            try:
-                if should_convert_args(func):
-                    converted_args, converted_kwargs = convert_function_args(func, args, kwargs)
-                    args = converted_args
-                    kwargs = converted_kwargs
-            except ValidationError as e:
-                # Re-raise validation errors with context
-                raise ValidationError(
-                    f"Pydantic validation failed for reasoner '{func.__name__}': {e}",
-                    model=getattr(e, 'model', None)
-                ) from e
-            except Exception as e:
-                # Log conversion errors but continue with original args for backward compatibility
-                if hasattr(agent_instance, 'dev_mode') and agent_instance.dev_mode:
-                    log_warn(f"Failed to convert arguments for {func.__name__}: {e}")
-            
-            if asyncio.iscoroutinefunction(func):
-                result = await func(*args, **kwargs)
-            else:
-                result = func(*args, **kwargs)
-        finally:
-            reset_execution_context(token)
-            agent_instance._current_execution_context = previous_agent_context
 
-        return result
+        # Inject execution_context if the function accepts it
+        sig = inspect.signature(func)
+        if "execution_context" in sig.parameters:
+            kwargs["execution_context"] = execution_context
+
+        # 🔥 NEW: Automatic Pydantic model conversion (FastAPI-like behavior)
+        try:
+            if should_convert_args(func):
+                converted_args, converted_kwargs = convert_function_args(
+                    func, args, kwargs
+                )
+                args = converted_args
+                kwargs = converted_kwargs
+        except ValidationError as e:
+            # Re-raise validation errors with context
+            raise ValidationError(
+                f"Pydantic validation failed for reasoner '{func.__name__}': {e}",
+                model=getattr(e, "model", None),
+            ) from e
+        except Exception as e:
+            # Log conversion errors but continue with original args for backward compatibility
+            if hasattr(agent_instance, "dev_mode") and agent_instance.dev_mode:
+                log_warn(f"Failed to convert arguments for {func.__name__}: {e}")
+
+        if asyncio.iscoroutinefunction(func):
+            return await func(*args, **kwargs)
+        return func(*args, **kwargs)
+
+    finally:
+        if token is not None:
+            reset_execution_context(token)
+        agent_instance._current_execution_context = previous_agent_context
+
+
 def on_change(pattern: Union[str, List[str]]):
     """
     Decorator to mark a function as a memory event listener.
-    
+
     Args:
         pattern: Memory pattern(s) to listen for changes
-        
+
     Returns:
         Decorated function with memory event listener metadata
     """
+
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
         async def wrapper(*args, **kwargs):
@@ -194,8 +203,11 @@ def on_change(pattern: Union[str, List[str]]):
 
         # Attach metadata to the function
         wrapper._memory_event_listener = True
-        wrapper._memory_event_patterns = pattern if isinstance(pattern, list) else [pattern]
+        wrapper._memory_event_patterns = (
+            pattern if isinstance(pattern, list) else [pattern]
+        )
         return wrapper
+
     return decorator
 
 
@@ -203,10 +215,11 @@ def on_change(pattern: Union[str, List[str]]):
 def legacy_reasoner(reasoner_id: str, input_schema: dict, output_schema: dict):
     """
     Legacy reasoner decorator for backward compatibility.
-    
+
     This is kept for compatibility with existing code that uses the old signature.
     New code should use the enhanced @reasoner decorator.
     """
+
     def decorator(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
@@ -214,9 +227,8 @@ def legacy_reasoner(reasoner_id: str, input_schema: dict, output_schema: dict):
 
         # Attach metadata to the function
         wrapper._reasoner_def = ReasonerDefinition(
-            id=reasoner_id,
-            input_schema=input_schema,
-            output_schema=output_schema
+            id=reasoner_id, input_schema=input_schema, output_schema=output_schema
         )
         return wrapper
+
     return decorator
