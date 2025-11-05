@@ -202,8 +202,8 @@ Haxen uses a **two-layer design**: a stateless **control plane** (like K8s contr
 │  Deploy independently → Coordinate automatically → Trust built-in │
 └───────────────────────────────────────────────────────────────┘
        ▲                        ▲                      ▲
-       │    REST API / gRPC / WebSocket / HTTP        │
-       │    (Language-agnostic communication)         │
+       │    REST API / gRPC / WebSocket / HTTP         │
+       │    (Language-agnostic communication)          │
        ▼                        ▼                      ▼
 ┌───────────────┐  ┌──────────────┐  ┌─────────────────────┐
 │  Agent Node   │  │ Agent Node   │  │   Agent Node        │
