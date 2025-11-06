@@ -175,11 +175,17 @@ jobs:
           }
           Add-Content -Path $env:GITHUB_PATH -Value $mingwPath
 
+      - name: Build Web UI
+        working-directory: control-plane/web/client
+        run: |
+          npm install
+          npm run build
+
       - name: Run GoReleaser build
         uses: goreleaser/goreleaser-action@v6
         with:
           version: '~> v2'
-          args: build --clean --skip=validate ${{ matrix.goreleaser_ids }}
+          args: build --clean --skip=validate --skip=before ${{ matrix.goreleaser_ids }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
