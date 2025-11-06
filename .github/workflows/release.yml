@@ -116,9 +116,6 @@ jobs:
           - os: macos-14
             label: darwin
             goreleaser_ids: '--id agentfield-darwin-amd64 --id agentfield-darwin-arm64'
-          - os: windows-2022
-            label: windows
-            goreleaser_ids: '--id agentfield-windows-amd64'
     runs-on: ${{ matrix.os }}
     env:
       GORELEASER_CURRENT_TAG: ${{ needs.prepare.outputs.tag_name }}
@@ -164,17 +161,6 @@ jobs:
           cache: 'npm'
           cache-dependency-path: control-plane/web/client/package-lock.json
 
-      - name: Install MinGW toolchain
-        if: matrix.label == 'windows'
-        shell: pwsh
-        run: |
-          choco install mingw --no-progress -y
-          $mingwPath = 'C:\ProgramData\mingw64\mingw64\bin'
-          if (-not (Test-Path $mingwPath)) {
-            throw "Expected MinGW path not found: $mingwPath"
-          }
-          Add-Content -Path $env:GITHUB_PATH -Value $mingwPath
-
       - name: Build Web UI
         working-directory: control-plane/web/client
         run: |
@@ -189,22 +175,13 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Rename artifact metadata (POSIX)
-        if: matrix.os != 'windows-2022'
+      - name: Rename artifact metadata
         shell: bash
         run: |
           set -euo pipefail
           if [ -f dist/artifacts.json ]; then mv dist/artifacts.json dist/artifacts-${{ matrix.label }}.json; fi
           if [ -f dist/metadata.json ]; then mv dist/metadata.json dist/metadata-${{ matrix.label }}.json; fi
           if [ -f dist/config.yaml ]; then mv dist/config.yaml dist/config-${{ matrix.label }}.yaml; fi
-
-      - name: Rename artifact metadata (Windows)
-        if: matrix.os == 'windows-2022'
-        shell: pwsh
-        run: |
-          if (Test-Path dist/artifacts.json) { Move-Item dist/artifacts.json dist/artifacts-${{ matrix.label }}.json }
-          if (Test-Path dist/metadata.json) { Move-Item dist/metadata.json dist/metadata-${{ matrix.label }}.json }
-          if (Test-Path dist/config.yaml) { Move-Item dist/config.yaml dist/config-${{ matrix.label }}.yaml }
 
       - name: Upload dist artifacts
         uses: actions/upload-artifact@v4
@@ -244,6 +221,19 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: control-plane/web/client/package-lock.json
+
+      - name: Build Web UI
+        working-directory: control-plane/web/client
+        run: |
+          npm install
+          npm run build
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -253,19 +243,13 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: dist-linux
-          path: .
+          path: dist
 
       - name: Download darwin artifacts
         uses: actions/download-artifact@v4
         with:
           name: dist-darwin
-          path: .
-
-      - name: Download windows artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: dist-windows
-          path: .
+          path: dist
 
       - name: Merge artifact metadata
         shell: bash
@@ -275,25 +259,36 @@ jobs:
             jq -s 'add' dist/artifacts-*.json > dist/artifacts.json
           fi
 
-          for suffix in linux darwin windows; do
+          for suffix in linux darwin; do
             if [ -f "dist/metadata-${suffix}.json" ]; then
               cp "dist/metadata-${suffix}.json" dist/metadata.json
               break
             fi
           done
 
-          for suffix in linux darwin windows; do
+          for suffix in linux darwin; do
             if [ -f "dist/config-${suffix}.yaml" ]; then
               cp "dist/config-${suffix}.yaml" dist/config.yaml
               break
             fi
           done
 
+      - name: Prepare GoReleaser args for publish
+        id: publish_args
+        shell: bash
+        env:
+          ORIGINAL_ARGS: ${{ needs.prepare.outputs.goreleaser_args }}
+        run: |
+          set -euo pipefail
+          # Remove --clean flag since we want to use pre-built binaries
+          PUBLISH_ARGS="${ORIGINAL_ARGS/--clean/}"
+          echo "args=${PUBLISH_ARGS}" >> "$GITHUB_OUTPUT"
+
       - name: Run GoReleaser release
         uses: goreleaser/goreleaser-action@v6
         with:
           version: '~> v2'
-          args: ${{ needs.prepare.outputs.goreleaser_args }} --skip=validate --skip=before
+          args: ${{ steps.publish_args.outputs.args }} --skip=validate --skip=before
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

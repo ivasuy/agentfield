@@ -90,26 +90,27 @@ builds:
       - sqlite_fts5
     no_unique_dist_dir: true
 
-  - id: agentfield-windows-amd64
-    dir: control-plane
-    main: ./cmd/af
-    binary: agentfield
-    env:
-      - CGO_ENABLED=1
-      - CC=gcc
-    goos:
-      - windows
-    goarch:
-      - amd64
-    ldflags:
-      - -s -w
-      - -X main.version={{ .Version }}
-      - -X main.commit={{ .ShortCommit }}
-      - -X main.date={{ .Date }}
-    tags:
-      - embedded
-      - sqlite_fts5
-    no_unique_dist_dir: true
+  # Windows build disabled - focus on Linux and macOS for now
+  # - id: agentfield-windows-amd64
+  #   dir: control-plane
+  #   main: ./cmd/af
+  #   binary: agentfield
+  #   env:
+  #     - CGO_ENABLED=1
+  #     - CC=gcc
+  #   goos:
+  #     - windows
+  #   goarch:
+  #     - amd64
+  #   ldflags:
+  #     - -s -w
+  #     - -X main.version={{ .Version }}
+  #     - -X main.commit={{ .ShortCommit }}
+  #     - -X main.date={{ .Date }}
+  #   tags:
+  #     - embedded
+  #     - sqlite_fts5
+  #   no_unique_dist_dir: true
 
 # Don't create archives - ship raw binaries
 archives:
@@ -119,7 +120,6 @@ archives:
       - agentfield-linux-arm64
       - agentfield-darwin-amd64
       - agentfield-darwin-arm64
-      - agentfield-windows-amd64
     format: binary
     name_template: "agentfield-{{ .Os }}-{{ .Arch }}"
 
@@ -139,26 +139,15 @@ release:
 
     ### Installation
 
-    **macOS & Linux:**
+    **Installation:**
     ```bash
     curl -fsSL https://agentfield.ai/install.sh | bash
     ```
 
-    **Windows:**
-    ```powershell
-    iwr -useb https://agentfield.ai/install.ps1 | iex
-    ```
-
     ### Version Pinning
 
-    **macOS & Linux:**
     ```bash
     VERSION={{ .Version }} curl -fsSL https://agentfield.ai/install.sh | bash
-    ```
-
-    **Windows:**
-    ```powershell
-    $env:VERSION="{{ .Version }}"; iwr -useb https://agentfield.ai/install.ps1 | iex
     ```
 
     ### Manual Download
@@ -171,7 +160,6 @@ release:
     - **macOS Apple Silicon:** `agentfield-darwin-arm64`
     - **Linux x86_64:** `agentfield-linux-amd64`
     - **Linux ARM64:** `agentfield-linux-arm64`
-    - **Windows:** `agentfield-windows-amd64.exe`
 
 changelog:
   use: git
