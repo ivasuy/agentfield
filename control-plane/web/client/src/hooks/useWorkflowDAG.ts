@@ -28,9 +28,11 @@ interface WorkflowDAGResponse {
   session_id?: string;
   actor_id?: string;
   total_nodes: number;
+   displayed_nodes?: number;
   max_depth: number;
   dag: WorkflowDAGNode;
   timeline: WorkflowDAGNode[];
+   status_counts?: Record<string, number>;
 }
 
 interface WorkflowDAGError {
@@ -420,14 +422,19 @@ function transformRunDetailToDag(detail: WorkflowRunDetailResponse): WorkflowDAG
     notes_count: 0,
   };
 
+  const totalNodes = detail.run.total_steps ?? nodeMap.size;
+  const displayedNodes = detail.run.returned_steps ?? nodeMap.size;
+
   return {
     root_workflow_id: detail.run.root_workflow_id,
     workflow_status: normalizedStatus,
     workflow_name: rootNode?.reasoner_id ?? detail.run.root_workflow_id,
-    total_nodes: nodeMap.size,
+    total_nodes: totalNodes,
+    displayed_nodes: displayedNodes,
     max_depth: maxDepth,
     dag: rootNode ?? fallbackRoot,
     timeline,
+    status_counts: detail.run.status_counts,
   };
 }
 

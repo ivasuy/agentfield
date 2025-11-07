@@ -117,6 +117,8 @@ export interface WorkflowRunDetailResponse {
     total_steps: number;
     completed_steps: number;
     failed_steps: number;
+    returned_steps?: number;
+    status_counts?: Record<string, number>;
     created_at: string;
     updated_at: string;
     completed_at?: string | null;

@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"context"
 	"net/http"
 	"sort"
 	"strconv"
@@ -8,6 +9,7 @@ import (
 	"time"
 
 	"github.com/Agent-Field/agentfield/control-plane/internal/handlers"
+	"github.com/Agent-Field/agentfield/control-plane/internal/logger"
 	"github.com/Agent-Field/agentfield/control-plane/internal/storage"
 	"github.com/Agent-Field/agentfield/control-plane/pkg/types"
 
@@ -55,16 +57,18 @@ type WorkflowRunListResponse struct {
 
 type WorkflowRunDetailResponse struct {
 	Run struct {
-		RunID           string  `json:"run_id"`
-		RootWorkflowID  string  `json:"root_workflow_id"`
-		RootExecutionID string  `json:"root_execution_id,omitempty"`
-		Status          string  `json:"status"`
-		TotalSteps      int     `json:"total_steps"`
-		CompletedSteps  int     `json:"completed_steps"`
-		FailedSteps     int     `json:"failed_steps"`
-		CreatedAt       string  `json:"created_at"`
-		UpdatedAt       string  `json:"updated_at"`
-		CompletedAt     *string `json:"completed_at,omitempty"`
+		RunID           string         `json:"run_id"`
+		RootWorkflowID  string         `json:"root_workflow_id"`
+		RootExecutionID string         `json:"root_execution_id,omitempty"`
+		Status          string         `json:"status"`
+		TotalSteps      int            `json:"total_steps"`
+		CompletedSteps  int            `json:"completed_steps"`
+		FailedSteps     int            `json:"failed_steps"`
+		ReturnedSteps   int            `json:"returned_steps"`
+		StatusCounts    map[string]int `json:"status_counts,omitempty"`
+		CreatedAt       string         `json:"created_at"`
+		UpdatedAt       string         `json:"updated_at"`
+		CompletedAt     *string        `json:"completed_at,omitempty"`
 	} `json:"run"`
 	Executions []apiWorkflowExecution `json:"executions"`
 }
@@ -123,7 +127,7 @@ func (h *WorkflowRunHandler) ListWorkflowRunsHandler(c *gin.Context) {
 	if err != nil {
 		// Log the actual error for debugging
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "failed to query run summaries",
+			"error":   "failed to query run summaries",
 			"details": err.Error(),
 		})
 		return
@@ -270,12 +274,28 @@ func (h *WorkflowRunHandler) GetWorkflowRunDetailHandler(c *gin.Context) {
 	detail.Run.TotalSteps = len(executions)
 	detail.Run.CompletedSteps = completed
 	detail.Run.FailedSteps = failed
+	detail.Run.ReturnedSteps = len(executions)
 	detail.Run.CreatedAt = executions[0].StartedAt.Format(time.RFC3339)
 	detail.Run.UpdatedAt = executions[len(executions)-1].StartedAt.Format(time.RFC3339)
 	if dag.CompletedAt != nil && *dag.CompletedAt != "" {
 		detail.Run.CompletedAt = dag.CompletedAt
 	}
 	_ = name
+
+	if agg := h.loadRunSummary(ctx, runID); agg != nil {
+		detail.Run.TotalSteps = agg.TotalExecutions
+		detail.Run.CompletedSteps = agg.StatusCounts[string(types.ExecutionStatusSucceeded)]
+		detail.Run.FailedSteps =
+			agg.StatusCounts[string(types.ExecutionStatusFailed)] +
+				agg.StatusCounts[string(types.ExecutionStatusCancelled)] +
+				agg.StatusCounts[string(types.ExecutionStatusTimeout)]
+		detail.Run.Status = deriveStatusFromCounts(agg.StatusCounts, agg.ActiveExecutions)
+		detail.Run.StatusCounts = cloneStatusCounts(agg.StatusCounts)
+
+		if agg.RootExecutionID != nil && detail.Run.RootExecutionID == "" {
+			detail.Run.RootExecutionID = *agg.RootExecutionID
+		}
+	}
 
 	detail.Executions = apiExecutions
 
@@ -358,6 +378,39 @@ func summarizeRun(runID string, executions []*types.Execution) WorkflowRunSummar
 	}
 
 	return summary
+}
+
+func (h *WorkflowRunHandler) loadRunSummary(ctx context.Context, runID string) *storage.RunSummaryAggregation {
+	filter := types.ExecutionFilter{
+		RunID:  &runID,
+		Limit:  1,
+		Offset: 0,
+	}
+
+	summaries, err := h.storage.QueryRunSummaries(ctx, filter)
+	if err != nil {
+		logger.Logger.Warn().
+			Str("run_id", runID).
+			Err(err).
+			Msg("failed to load run summary aggregation")
+		return nil
+	}
+	if len(summaries) == 0 {
+		return nil
+	}
+	return summaries[0]
+}
+
+func cloneStatusCounts(input map[string]int) map[string]int {
+	if input == nil {
+		return nil
+	}
+
+	result := make(map[string]int, len(input))
+	for key, value := range input {
+		result[key] = value
+	}
+	return result
 }
 
 func countOutcomeSteps(executions []*types.Execution) (int, int) {

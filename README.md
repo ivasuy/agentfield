@@ -38,11 +38,6 @@ curl -fsSL https://agentfield.ai/install.sh | bash && af init my-agents
 curl -fsSL https://agentfield.ai/install.sh | bash
 ```
 
-**Windows (PowerShell):**
-```powershell
-iwr -useb https://agentfield.ai/install.ps1 | iex
-```
-
 Verify installation:
 ```bash
 agentfield --version
@@ -63,7 +58,6 @@ The installer automatically detects your platform and sets everything up. No sud
 curl -fsSL https://agentfield.ai/install.sh | bash
 
 # Start control plane + create your first agent
-af dev
 af init my-agents && cd my-agents
 af run
 ```

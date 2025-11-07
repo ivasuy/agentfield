@@ -38,6 +38,7 @@ import type {
 } from "../../types/workflows";
 import { Card, CardContent } from "../ui/card";
 import { cn } from "../../lib/utils";
+import { formatNumberWithCommas } from "../../utils/numberFormat";
 
 interface WorkflowDAGNode {
   workflow_id: string;
@@ -61,12 +62,14 @@ export interface WorkflowDAGResponse {
   session_id?: string;
   actor_id?: string;
   total_nodes: number;
+  displayed_nodes?: number;
   max_depth: number;
   dag?: WorkflowDAGNode;
   timeline: WorkflowDAGNode[];
   workflow_status?: string;
   workflow_name?: string;
   mode?: "lightweight";
+  status_counts?: Record<string, number>;
 }
 
 export interface WorkflowDAGControls {
@@ -115,6 +118,7 @@ function adaptLightweightResponse(
     session_id: response.session_id,
     actor_id: response.actor_id,
     total_nodes: response.total_nodes,
+    displayed_nodes: timeline.length,
     max_depth: response.max_depth,
     dag,
     timeline,
@@ -1204,6 +1208,12 @@ function decorateEdgesWithStatus(
 
   // Render DeckGL view for large graphs
   if (shouldUseDeckGL && deckGraphData) {
+    const totalNodes =
+      effectiveDagData?.total_nodes ?? deckGraphData.nodes.length;
+    const displayedNodes =
+      effectiveDagData?.displayed_nodes ?? deckGraphData.nodes.length;
+    const hasTruncation = totalNodes > displayedNodes;
+
     return (
       <div className={cn("relative h-full w-full", className)}>
         <div className="flex h-full w-full flex-col">
@@ -1236,7 +1246,11 @@ function decorateEdgesWithStatus(
                         Large Graph Mode
                       </span>
                       <span className="text-muted-foreground">
-                        ({nodes.length.toLocaleString()} nodes)
+                        {hasTruncation
+                          ? `(${formatNumberWithCommas(
+                              displayedNodes
+                            )} shown / ${formatNumberWithCommas(totalNodes)} total)`
+                          : `(${formatNumberWithCommas(totalNodes)} nodes)`}
                       </span>
                     </div>
                   </CardContent>
