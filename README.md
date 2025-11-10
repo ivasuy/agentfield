@@ -29,7 +29,7 @@ Every agent gets **REST/gRPC APIs**, **async execution & webhooks**, **built-in 
 ```bash
 curl -fsSL https://agentfield.ai/install.sh | bash && af init my-agents
 ```
----
+
 
 ## 🚀 Try AgentField in 2 Minutes
 
@@ -93,7 +93,7 @@ curl -X POST http://localhost:8080/api/v1/execute/greeting-agent.say_hello \
 
 **[📚 Docs](https://agentfield.ai/docs)** • **[⚡ More examples](https://github.com/agentfield/agentfield-examples)**
 
----
+
 
 ## Why AgentField?
 
@@ -119,7 +119,6 @@ AgentField = Kubernetes + Auth0 for AI (distributed infrastructure + identity)
 
 Bring your own model/tooling; AgentField handles runtime, scale, and proof.
 
----
 
 What You Get Out-of-the-Box
 
@@ -160,7 +159,6 @@ Each agent is a microservice. Teams deploy independently; the control plane make
 
 **More:** [Architecture](https://agentfield.ai/docs/architecture) • [API Reference](https://agentfield.ai/docs/api)
 
----
 
 ## Real-Time & Async
 
@@ -171,7 +169,6 @@ Each agent is a microservice. Teams deploy independently; the control plane make
 
 **Docs:** [API Reference](https://agentfield.ai/docs/api) • [Observability](https://agentfield.ai/docs/observability)
 
----
 
 ## Identity & Audit (opt-in per agent)
 
@@ -182,7 +179,7 @@ Each agent is a microservice. Teams deploy independently; the control plane make
 
 **Docs:** [Identity & Trust](https://agentfield.ai/docs/why-agentfield/vs-agent-frameworks)
 
----
+
 
 ## Installation
 
@@ -228,7 +225,7 @@ cd agentfield && docker compose up
 
 You can start with AgentField and skip migration pain later. Or start with a framework and migrate when you hit the pain points above.
 
----
+
 
 ## Community
 
@@ -245,7 +242,7 @@ Apache 2.0 licensed. Built by developers like you.
 See [CONTRIBUTING.md](CONTRIBUTING.md) for setup and guidelines.
 
 
----
+
 
 ## 📖 Resources
 
