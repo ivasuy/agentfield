@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="assets/github.png" alt="AgentField - Kubernetes, for AI Agents" width="100%" />
+<img src="assets/github hero.png" alt="AgentField - Kubernetes, for AI Agents" width="100%" />
 
 ### Kubernetes for AI Agents — **Deploy, Scale, Observe, and Prove**
 
@@ -19,17 +19,43 @@ Every agent gets **REST/gRPC APIs**, **async execution & webhooks**, **built-in 
 
 ---
 
-## TL;DR
+<table>
+<tr>
+<td width="58%" valign="top">
 
-- **Write agents in Python/Go** (or any language via REST/gRPC)
-- **Deploy independently** like microservices—zero coordination between teams
-- **Get production infrastructure automatically**: IAM, REST APIs, streaming, async queues, observability, cryptographic audit trails
-- **Run anywhere**: local dev, Docker, Kubernetes, cloud
+## 🚀 **Ship Production-Ready AI Agents in Minutes**
+
+✅ **Write agents in Python/Go** (or any language via REST/gRPC)
+
+✅ **Deploy independently** like microservices—zero coordination between teams and services
+
+✅ **Get production infrastructure automatically**:
+- **IAM & cryptographic audit trails** — W3C DIDs + Verifiable Credentials
+- **REST APIs, streaming, async queues** — auto-generated endpoints
+- **Built-in observability & metrics** — Prometheus + Distributed Observability
+
+✅ **Run anywhere**: local dev, Docker, Kubernetes, cloud
 
 ```bash
 curl -fsSL https://agentfield.ai/install.sh | bash && af init my-agents
 ```
 
+**[📚 Full Docs](https://agentfield.ai/docs)** • **[⚡ Quick Start](https://agentfield.ai/docs/quick-start)** • **[🎯 Examples](https://github.com/agentfield/agentfield-examples)**
+
+</td>
+<td width="42%" valign="top">
+
+<div align="center">
+<img src="assets/UI.png" alt="AgentField Dashboard - Real-time workflow visualization" width="100%" style="border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);" />
+
+**👆 Real-time observability, cryptographic audit trails, and many more.. out of the box!**
+</div>
+
+</td>
+</tr>
+</table>
+
+---
 
 ## 🚀 Try AgentField in 2 Minutes
 
