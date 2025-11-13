@@ -2088,6 +2088,27 @@ class Agent(FastAPI):
                 prefix_part = "_".join(parts)
                 return f"{prefix_part}_{base}"
 
+            def _normalize_component_path(
+                path_value: Optional[str], component: str, component_id: str
+            ) -> str:
+                """Ensure router-registered components map to /reasoners/{id} style paths."""
+
+                marker = f"/{component}/"
+                if not path_value:
+                    return marker + component_id
+
+                idx = path_value.find(marker)
+                if idx == -1:
+                    return path_value
+
+                # Preserve any include_router prefix (everything up to and including marker)
+                prefix_part = path_value[: idx + len(marker)]
+                if path_value.endswith(component_id) and path_value.startswith(prefix_part):
+                    # Already normalized
+                    return path_value
+
+                return f"{prefix_part}{component_id}"
+
             namespace_segments = _sanitize_prefix_for_id(getattr(router, "prefix", ""))
 
             for entry in router.reasoners:
@@ -2096,6 +2117,7 @@ class Agent(FastAPI):
 
                 func = entry["func"]
                 default_path = f"/reasoners/{func.__name__}"
+                auto_path = entry.get("path") is None
                 resolved_path = router._combine_path(
                     default=default_path,
                     custom=entry.get("path"),
@@ -2115,6 +2137,11 @@ class Agent(FastAPI):
                     func.__name__,
                 )
 
+                if auto_path:
+                    resolved_path = _normalize_component_path(
+                        resolved_path, "reasoners", reasoner_id
+                    )
+
                 decorated = self.reasoner(
                     path=resolved_path,
                     name=reasoner_id,
@@ -2131,6 +2158,7 @@ class Agent(FastAPI):
 
                 func = entry["func"]
                 default_path = f"/skills/{func.__name__}"
+                auto_path = entry.get("path") is None
                 resolved_path = router._combine_path(
                     default=default_path,
                     custom=entry.get("path"),
@@ -2149,6 +2177,11 @@ class Agent(FastAPI):
                     namespace_segments,
                     func.__name__,
                 )
+
+                if auto_path:
+                    resolved_path = _normalize_component_path(
+                        resolved_path, "skills", skill_id
+                    )
 
                 decorated = self.skill(
                     tags=tag_arg,

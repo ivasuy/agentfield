@@ -165,13 +165,13 @@ async def test_agent_router_prefix_registration(monkeypatch):
         transport=httpx.ASGITransport(app=agent), base_url="http://test"
     ) as client:
         reasoner_resp = await client.post(
-            "/reasoners/demo/hello",
+            "/reasoners/demo_hello",
             json={"name": "Agent"},
             headers={"x-workflow-id": "wf-router", "x-execution-id": "exec-router"},
         )
 
         skill_resp = await client.post(
-            "/skills/demo/repeat",
+            "/skills/demo_repeat",
             json={"text": "ping"},
             headers={"x-workflow-id": "wf-router", "x-execution-id": "exec-router"},
         )

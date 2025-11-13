@@ -18,6 +18,7 @@ if __package__ in (None, ""):
 
 from chunking import chunk_markdown_text, is_supported_file, read_text
 from embedding import embed_query, embed_texts
+from routers.query_planning import query_router, plan_queries
 from schemas import (
     Citation,
     DocAnswer,
@@ -178,7 +179,7 @@ When users ask about:
 
 app = Agent(
     node_id="documentation-chatbot",
-    agentfield_server=f"{os.getenv('AGENTFIELD_SERVER')}",
+    agentfield_server="http://localhost:8080",  # f"{os.getenv('AGENTFIELD_SERVER')}",
     ai_config=AIConfig(
         model=os.getenv("AI_MODEL", "openrouter/openai/gpt-4o-mini"),
     ),
@@ -516,45 +517,12 @@ def _build_citations_from_documents(
     return citations
 
 
-# ========================= Agent 1: Query Planner =========================
+# ========================= Include Router =========================
 
-
-@app.reasoner()
-async def plan_queries(question: str) -> QueryPlan:
-    """Generate 3-5 diverse search queries from the user's question."""
-
-    return await app.ai(
-        system=(
-            "You are a query planning expert for documentation search. "
-            "Your job is to generate 3-5 DIVERSE search queries that maximize retrieval coverage.\n\n"
-            "## PRODUCT CONTEXT\n"
-            f"{PRODUCT_CONTEXT}\n\n"
-            "Use this context to understand product-specific terminology and generate better search queries. "
-            "For example, if a user asks about 'identity', recognize they likely mean DIDs/VCs. "
-            "If they ask about 'functions', they might mean reasoners or skills.\n\n"
-            "## DIVERSITY STRATEGIES\n"
-            "1. Use different terminology and synonyms (including product-specific terms)\n"
-            "2. Cover different aspects (setup, usage, troubleshooting, configuration)\n"
-            "3. Range from broad concepts to specific terms\n"
-            "4. Include related concepts using the 'Search Term Relationships' above\n"
-            "5. Avoid redundancy - each query should target unique angles\n\n"
-            "## QUERY TYPES\n"
-            "- How-to queries: 'how to install X', 'how to create X'\n"
-            "- Concept queries: 'X architecture', 'what is X'\n"
-            "- Troubleshooting: 'X error', 'X not working'\n"
-            "- Configuration: 'X settings', 'configure X'\n"
-            "- API/Reference: 'X API', 'X methods'\n"
-            "- Comparison: 'X vs Y', 'when to use X'"
-        ),
-        user=(
-            f"Question: {question}\n\n"
-            "Generate 3-5 diverse search queries that cover different angles of this question. "
-            "Use your knowledge of the product (AgentField) to include relevant technical terms. "
-            "Also specify the strategy: 'broad' (general exploration), 'specific' (targeted search), "
-            "or 'mixed' (combination of both)."
-        ),
-        schema=QueryPlan,
-    )
+# Include the query planning router
+# This registers the plan_queries function with prefix "query"
+# API endpoint will be: documentation-chatbot.query_plan_queries
+app.include_router(query_router)
 
 
 # ========================= Agent 2: Parallel Retrievers =========================
@@ -1104,9 +1072,9 @@ if __name__ == "__main__":
     print("  - Max 1 refinement iteration (prevents loops)")
     print("  - Document-level context (full pages vs isolated chunks)")
     print("  - Smart document ranking (frequency + relevance scoring)")
-
-    port_env = os.getenv("PORT")
-    if port_env is None:
-        app.run(auto_port=True, host="::")
-    else:
-        app.run(port=int(port_env), host="::")
+    app.run(auto_port=True)
+    # port_env = os.getenv("PORT")
+    # if port_env is None:
+    #     app.run(auto_port=True , host="::")
+    # else:
+    #     app.run(port=int(port_env), host="::")
