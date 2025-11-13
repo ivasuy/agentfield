@@ -3,25 +3,37 @@ name: Release
 on:
   workflow_dispatch:
     inputs:
-      version:
-        description: 'Release version (e.g., v0.1.0,v0.1.0-alpha) - required for publishing'
+      release_component:
+        description: 'Which part of the SemVer to bump'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+        default: patch
+      release_channel:
+        description: 'Stable or prerelease channel'
+        type: choice
+        options:
+          - stable
+          - prerelease
+        default: stable
+      prerelease_label:
+        description: 'Label for prerelease (e.g., rc, beta). Required when channel is prerelease.'
         type: string
         required: false
-      publish_release:
-        description: 'Publish to GitHub Releases (creates binaries for install script)'
-        type: boolean
-        default: false
+      existing_version:
+        description: 'Optional explicit version to reuse (skips bumping/pushing)'
+        type: string
+        required: false
       publish_pypi:
         description: 'Publish Python SDK to PyPI'
         type: boolean
-        default: false
+        default: true
       publish_docker:
         description: 'Push Docker image'
         type: boolean
-        default: false
-  push:
-    tags:
-      - 'v*.*.*'
+        default: true
 
 permissions:
   contents: write
@@ -36,81 +48,80 @@ jobs:
   prepare:
     runs-on: ubuntu-latest
     outputs:
-      goreleaser_args: ${{ steps.goreleaser.outputs.args }}
-      release_upload: ${{ steps.goreleaser.outputs.release_upload }}
-      tag_name: ${{ steps.goreleaser.outputs.tag_name }}
+      version: ${{ steps.version.outputs.version }}
+      tag_name: ${{ steps.version.outputs.tag_name }}
+      release_sha: ${{ steps.version.outputs.release_sha }}
       publish_pypi: ${{ steps.flags.outputs.publish_pypi }}
       publish_docker: ${{ steps.flags.outputs.publish_docker }}
-      require_binaries: ${{ steps.goreleaser.outputs.require_binaries }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
+      - name: Set up Python for tooling
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
       - name: Determine publish flags
         id: flags
-        env:
-          EVENT_NAME: ${{ github.event_name }}
-          PUBLISH_PYPI_INPUT: ${{ github.event.inputs.publish_pypi }}
-          PUBLISH_DOCKER_INPUT: ${{ github.event.inputs.publish_docker }}
         run: |
           set -euo pipefail
-          if [ "${EVENT_NAME}" = "workflow_dispatch" ]; then
-            if [ "${PUBLISH_PYPI_INPUT}" = "true" ]; then
-              echo "publish_pypi=true" >> "$GITHUB_OUTPUT"
-            else
-              echo "publish_pypi=false" >> "$GITHUB_OUTPUT"
-            fi
-            if [ "${PUBLISH_DOCKER_INPUT}" = "true" ]; then
-              echo "publish_docker=true" >> "$GITHUB_OUTPUT"
-            else
-              echo "publish_docker=false" >> "$GITHUB_OUTPUT"
-            fi
-          else
+          if [ "${{ github.event.inputs.publish_pypi }}" = "true" ]; then
             echo "publish_pypi=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish_pypi=false" >> "$GITHUB_OUTPUT"
+          fi
+          if [ "${{ github.event.inputs.publish_docker }}" = "true" ]; then
             echo "publish_docker=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish_docker=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Compute GoReleaser arguments
-        id: goreleaser
+      - name: Prepare release version
+        id: version
         env:
-          EVENT_NAME: ${{ github.event_name }}
-          PUBLISH_RELEASE_INPUT: ${{ github.event.inputs.publish_release }}
-          VERSION_INPUT: ${{ github.event.inputs.version }}
+          CHANNEL: ${{ github.event.inputs.release_channel }}
+          COMPONENT: ${{ github.event.inputs.release_component }}
+          PRERELEASE_LABEL: ${{ github.event.inputs.prerelease_label }}
+          EXISTING_VERSION: ${{ github.event.inputs.existing_version }}
           REF_NAME: ${{ github.ref_name }}
         run: |
           set -euo pipefail
-          if [ "${EVENT_NAME}" = "workflow_dispatch" ]; then
-            if [ "${PUBLISH_RELEASE_INPUT}" = "true" ]; then
-              if [ -z "${VERSION_INPUT}" ]; then
-                echo "ERROR: version input is required when publish_release is true" >&2
-                exit 1
-              fi
-              git config user.name "github-actions[bot]"
-              git config user.email "github-actions[bot]@users.noreply.github.com"
-              if ! git rev-parse "${VERSION_INPUT}" >/dev/null 2>&1; then
-                git tag -a "${VERSION_INPUT}" -m "Release ${VERSION_INPUT}"
-              fi
-              echo "args=release --clean" >> "$GITHUB_OUTPUT"
-              echo "release_upload=true" >> "$GITHUB_OUTPUT"
-              echo "tag_name=${VERSION_INPUT}" >> "$GITHUB_OUTPUT"
-              echo "require_binaries=true" >> "$GITHUB_OUTPUT"
-            else
-              echo "args=release --clean --skip-publish --snapshot" >> "$GITHUB_OUTPUT"
-              echo "release_upload=false" >> "$GITHUB_OUTPUT"
-              echo "tag_name=" >> "$GITHUB_OUTPUT"
-              echo "require_binaries=false" >> "$GITHUB_OUTPUT"
-            fi
+
+          if [ -n "${EXISTING_VERSION}" ]; then
+            version="${EXISTING_VERSION}"
+            tag="v${version}"
+            git fetch --tags origin "refs/tags/${tag}:refs/tags/${tag}" --depth=1
+            release_sha="$(git rev-parse "${tag}")"
           else
-            echo "args=release --clean" >> "$GITHUB_OUTPUT"
-            echo "release_upload=true" >> "$GITHUB_OUTPUT"
-            echo "tag_name=${REF_NAME}" >> "$GITHUB_OUTPUT"
-            echo "require_binaries=true" >> "$GITHUB_OUTPUT"
+            if [ "${CHANNEL}" = "prerelease" ] && [ -z "${PRERELEASE_LABEL}" ]; then
+              echo "prerelease_label input is required when channel is prerelease" >&2
+              exit 1
+            fi
+            cmd=(python scripts/bump_version.py --channel "${CHANNEL}" --component "${COMPONENT}")
+            if [ -n "${PRERELEASE_LABEL}" ]; then
+              cmd+=("--prerelease-label" "${PRERELEASE_LABEL}")
+            fi
+            version="$("${cmd[@]}")"
+            tag="v${version}"
+            git status --short
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add -A
+            git commit -m "chore(release): ${tag}"
+            git tag -a "${tag}" -m "Release ${tag}"
+            git push origin "HEAD:${REF_NAME}"
+            git push origin "${tag}"
+            release_sha="$(git rev-parse HEAD)"
           fi
 
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "tag_name=${tag}" >> "$GITHUB_OUTPUT"
+          echo "release_sha=${release_sha}" >> "$GITHUB_OUTPUT"
+
   build-binaries:
-    if: needs.prepare.outputs.require_binaries == 'true'
     needs: prepare
     strategy:
       matrix:
@@ -124,25 +135,13 @@ jobs:
     runs-on: ${{ matrix.os }}
     env:
       GORELEASER_CURRENT_TAG: ${{ needs.prepare.outputs.tag_name }}
-      GORELEASER_CURRENT_COMMIT: ${{ github.sha }}
+      GORELEASER_CURRENT_COMMIT: ${{ needs.prepare.outputs.release_sha }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - name: Recreate release tag if needed
-        if: needs.prepare.outputs.tag_name != ''
-        shell: bash
-        env:
-          TAG_NAME: ${{ needs.prepare.outputs.tag_name }}
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          if ! git rev-parse "$TAG_NAME" >/dev/null 2>&1; then
-            git tag -a "$TAG_NAME" -m "Release $TAG_NAME"
-          fi
+          ref: ${{ needs.prepare.outputs.release_sha }}
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -219,34 +218,20 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GORELEASER_CURRENT_TAG: ${{ needs.prepare.outputs.tag_name }}
-      GORELEASER_CURRENT_COMMIT: ${{ github.sha }}
+      GORELEASER_CURRENT_COMMIT: ${{ needs.prepare.outputs.release_sha }}
     steps:
-      - name: Checkout
+      - name: Checkout release commit
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - name: Recreate release tag if needed
-        if: needs.prepare.outputs.tag_name != ''
-        shell: bash
-        env:
-          TAG_NAME: ${{ needs.prepare.outputs.tag_name }}
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          if ! git rev-parse "$TAG_NAME" >/dev/null 2>&1; then
-            git tag -a "$TAG_NAME" -m "Release $TAG_NAME"
-          fi
+          ref: ${{ needs.prepare.outputs.release_sha }}
 
       - name: Set up Go
-        if: needs.prepare.outputs.release_upload == 'true'
         uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
 
       - name: Set up Node.js
-        if: needs.prepare.outputs.release_upload == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -254,7 +239,6 @@ jobs:
           cache-dependency-path: control-plane/web/client/package-lock.json
 
       - name: Build Web UI
-        if: needs.prepare.outputs.release_upload == 'true'
         working-directory: control-plane/web/client
         run: |
           npm install
@@ -266,49 +250,42 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Download linux artifacts
-        if: needs.prepare.outputs.release_upload == 'true'
         uses: actions/download-artifact@v4
         with:
           name: dist-linux
           path: dist
 
       - name: Download darwin artifacts
-        if: needs.prepare.outputs.release_upload == 'true'
         uses: actions/download-artifact@v4
         with:
           name: dist-darwin
           path: dist
 
       - name: Merge binaries and create checksums
-        if: needs.prepare.outputs.release_upload == 'true'
         shell: bash
         run: |
           set -euo pipefail
 
-          # List all downloaded binaries
           echo "Downloaded binaries:"
           ls -lah dist/
 
-          # Generate checksums
           cd dist
           sha256sum agentfield-* > checksums.txt
           cat checksums.txt
           cd ..
 
       - name: Create GitHub Release
-        if: needs.prepare.outputs.release_upload == 'true'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ needs.prepare.outputs.tag_name || github.ref_name }}
+          tag_name: ${{ needs.prepare.outputs.tag_name }}
           draft: false
-          prerelease: ${{ contains(needs.prepare.outputs.tag_name, 'alpha') || contains(needs.prepare.outputs.tag_name, 'beta') || contains(needs.prepare.outputs.tag_name, 'rc') }}
+          prerelease: ${{ contains(needs.prepare.outputs.tag_name, '-') }}
           generate_release_notes: true
           body: |
-            ## AgentField ${{ needs.prepare.outputs.tag_name || github.ref_name }}
+            ## AgentField ${{ needs.prepare.outputs.version }}
 
             ### Installation
 
-            **Installation:**
             ```bash
             curl -fsSL https://agentfield.ai/install.sh | bash
             ```
@@ -316,7 +293,7 @@ jobs:
             ### Version Pinning
 
             ```bash
-            VERSION=${{ needs.prepare.outputs.tag_name || github.ref_name }} curl -fsSL https://agentfield.ai/install.sh | bash
+            VERSION=${{ needs.prepare.outputs.tag_name }} curl -fsSL https://agentfield.ai/install.sh | bash
             ```
 
             ### Manual Download
@@ -333,59 +310,46 @@ jobs:
             dist/agentfield-*
             dist/checksums.txt
 
-      - name: Upload build artifacts
-        if: needs.prepare.outputs.release_upload == 'true' && github.event_name == 'workflow_dispatch'
+      - name: Upload binary artifacts
         uses: actions/upload-artifact@v4
         with:
           name: binaries-dist
           path: dist/
 
       - name: Build Python package
-        if: needs.prepare.outputs.publish_pypi == 'true' || needs.prepare.outputs.release_upload == 'true'
         working-directory: sdk/python
         run: |
           python -m pip install --upgrade pip build
           python -m build
 
       - name: Upload Python package artifacts
-        if: (needs.prepare.outputs.publish_pypi == 'true' || needs.prepare.outputs.release_upload == 'true') && github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
         with:
           name: python-sdk-dist
           path: sdk/python/dist
 
       - name: Publish to PyPI
-        if: needs.prepare.outputs.publish_pypi == 'true' && (needs.prepare.outputs.tag_name != '' || startsWith(github.ref, 'refs/tags/'))
+        if: needs.prepare.outputs.publish_pypi == 'true'
         working-directory: sdk/python
         env:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
         run: |
           python -m pip install --upgrade twine
-          twine upload dist/*
+          twine upload --skip-existing dist/*
 
       - name: Compute Docker metadata
         if: needs.prepare.outputs.publish_docker == 'true'
         id: docker_meta
         env:
-          EVENT_NAME: ${{ github.event_name }}
-          REF_NAME: ${{ github.ref_name }}
-          SHA: ${{ github.sha }}
           OWNER: ${{ github.repository_owner }}
           TAG_NAME: ${{ needs.prepare.outputs.tag_name }}
         run: |
           set -euo pipefail
           owner="$(echo "${OWNER}" | tr '[:upper:]' '[:lower:]')"
           image="ghcr.io/${owner}/agentfield-control-plane"
-          if [ -n "${TAG_NAME}" ]; then
-            tag="${TAG_NAME}"
-          elif [ "${EVENT_NAME}" = "push" ]; then
-            tag="${REF_NAME}"
-          else
-            tag="${SHA}"
-          fi
           echo "image=${image}" >> "$GITHUB_OUTPUT"
-          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+          echo "tag=${TAG_NAME}" >> "$GITHUB_OUTPUT"
 
       - name: Set up Docker Buildx
         if: needs.prepare.outputs.publish_docker == 'true'
@@ -412,10 +376,9 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Attach Python artifacts to GitHub release
-        if: needs.prepare.outputs.release_upload == 'true'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ needs.prepare.outputs.tag_name || github.ref_name }}
+          tag_name: ${{ needs.prepare.outputs.tag_name }}
           files: |
             sdk/python/dist/*.whl
             sdk/python/dist/*.tar.gz
