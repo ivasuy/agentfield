@@ -1,4 +1,3 @@
-import socket
 import pytest
 
 from agentfield.utils import get_free_port
@@ -25,7 +24,7 @@ def test_get_free_port_iterates_until_success(monkeypatch):
         outcome = attempts.pop(0)
         return DummySocket(outcome)
 
-    monkeypatch.setattr(socket, "socket", fake_socket)
+    monkeypatch.setattr("agentfield.utils.socket.socket", fake_socket)
 
     port = get_free_port(start_port=1000, end_port=1001)
     assert port == 1001
@@ -42,7 +41,9 @@ def test_get_free_port_raises_when_exhausted(monkeypatch):
         def bind(self, addr):
             raise OSError("busy")
 
-    monkeypatch.setattr(socket, "socket", lambda *args, **kwargs: DummySocket())
+    monkeypatch.setattr(
+        "agentfield.utils.socket.socket", lambda *args, **kwargs: DummySocket()
+    )
 
     with pytest.raises(RuntimeError):
         get_free_port(start_port=5, end_port=6)
