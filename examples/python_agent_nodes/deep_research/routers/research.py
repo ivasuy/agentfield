@@ -120,7 +120,7 @@ async def synthesize_findings(
         raw_content = result.get("raw_content", "")
 
         excerpt = raw_content[:500] if raw_content else content[:300]
-        results_text += f"\n[{idx+1}] {title}\nURL: {url}\nContent: {excerpt}\n"
+        results_text += f"\n[{idx + 1}] {title}\nURL: {url}\nContent: {excerpt}\n"
 
         citations_data.append({"url": url, "title": title, "excerpt": excerpt})
 
@@ -296,7 +296,7 @@ async def execute_research_task_with_context(
         raw_content = result.get("raw_content", "")
 
         excerpt = raw_content[:500] if raw_content else content[:300]
-        results_text += f"\n[{idx+1}] {title}\nURL: {url}\nContent: {excerpt}\n"
+        results_text += f"\n[{idx + 1}] {title}\nURL: {url}\nContent: {excerpt}\n"
 
         citations_data.append({"url": url, "title": title, "excerpt": excerpt})
 
