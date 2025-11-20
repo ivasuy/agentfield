@@ -17,21 +17,26 @@ research_router = AgentRouter(prefix="research")
 async def generate_search_queries(
     task_description: str, research_question: str
 ) -> SearchQueries:
-    """Generate focused search queries for a research task."""
+    """Generate focused search queries for a leaf research task."""
     response = await research_router.ai(
         system=(
-            "You are a search query expert. Generate 2-4 focused search queries "
-            "optimized for web search that will help answer the research task.\n\n"
+            "You are a search query expert generating queries for a leaf task.\n\n"
+            "## CONTEXT\n"
+            "This is a LEAF TASK - it will be answered via web search.\n"
+            "Leaf tasks are atomic research questions that need specific web search results.\n\n"
+            "## YOUR TASK\n"
+            "Generate 2-4 focused search queries optimized for web search.\n\n"
             "Each query should be:\n"
-            "- Specific and targeted\n"
-            "- Use relevant keywords\n"
-            "- Different angles/aspects of the task\n\n"
+            "- Specific and targeted to answer the task question\n"
+            "- Use relevant keywords and terminology\n"
+            "- Cover different angles/aspects of the task\n"
+            "- Designed to find specific answers, not general information\n\n"
             "Return ONLY a JSON object with a 'queries' array of search strings."
         ),
         user=(
             f"Research Question: {research_question}\n"
-            f"Task: {task_description}\n\n"
-            f"Generate 2-4 search queries to research this task."
+            f"Leaf Task (needs web search): {task_description}\n\n"
+            f"Generate 2-4 search queries that will find specific answers to this question."
         ),
         schema=SearchQueries,
     )
