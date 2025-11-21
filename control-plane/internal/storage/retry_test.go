@@ -3,7 +3,6 @@ package storage
 import (
 	"context"
 	"errors"
-	"strings"
 	"testing"
 	"time"
 
@@ -204,7 +203,7 @@ func TestRetryOnConstraintFailure_ValidationError(t *testing.T) {
 	attempts := 0
 	operation := func() error {
 		attempts++
-		return &ValidationError{Message: "validation failed"}
+		return &ValidationError{Reason: "validation failed"}
 	}
 
 	err := ls.retryOnConstraintFailure(context.Background(), operation, 3)
@@ -220,7 +219,7 @@ func TestRetryOnConstraintFailure_ForeignKeyError(t *testing.T) {
 	attempts := 0
 	operation := func() error {
 		attempts++
-		return &ForeignKeyConstraintError{Message: "foreign key violation"}
+		return &ForeignKeyConstraintError{Reason: "foreign key violation"}
 	}
 
 	err := ls.retryOnConstraintFailure(context.Background(), operation, 3)
@@ -236,7 +235,7 @@ func TestRetryOnConstraintFailure_DuplicateDIDError(t *testing.T) {
 	attempts := 0
 	operation := func() error {
 		attempts++
-		return &DuplicateDIDError{Message: "duplicate DID"}
+		return &DuplicateDIDError{Reason: "duplicate DID"}
 	}
 
 	err := ls.retryOnConstraintFailure(context.Background(), operation, 3)

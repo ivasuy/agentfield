@@ -161,10 +161,11 @@ func TestUpdateExecutionStatusHandler_WithWebhook(t *testing.T) {
 	require.NoError(t, store.CreateExecutionRecord(context.Background(), execution))
 
 	// Register webhook
+	secret := "test-secret"
 	webhook := &types.ExecutionWebhook{
 		ExecutionID: "exec-1",
 		URL:         "https://example.com/webhook",
-		Secret:      "test-secret",
+		Secret:      &secret,
 	}
 	require.NoError(t, store.RegisterExecutionWebhook(context.Background(), webhook))
 
@@ -307,7 +308,7 @@ func TestWaitForExecutionCompletion_Success(t *testing.T) {
 
 	eventBus := store.GetExecutionEventBus()
 	subscriberID := "test-subscriber"
-	eventChan := eventBus.Subscribe(subscriberID)
+	_ = eventBus.Subscribe(subscriberID)
 	defer eventBus.Unsubscribe(subscriberID)
 
 	// Start waiting in goroutine
