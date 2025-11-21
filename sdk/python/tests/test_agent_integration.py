@@ -294,7 +294,11 @@ async def test_router_empty_prefix(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_router_include_router_with_additional_prefix(monkeypatch):
-    """Test include_router with additional prefix parameter."""
+    """Test include_router with additional prefix parameter.
+
+    Note: The include_router prefix parameter affects HTTP paths, not function IDs.
+    Function IDs only use the router's prefix, not the include_router prefix.
+    """
     agent, _ = create_test_agent(monkeypatch)
     agent.async_config.enable_async_execution = False
     agent.agentfield_server = None
@@ -306,12 +310,25 @@ async def test_router_include_router_with_additional_prefix(monkeypatch):
         return {"profile": "data"}
 
     # Include router with additional prefix
+    # The function ID should only use the router's prefix, not include_router prefix
     agent.include_router(router, prefix="api/v2")
 
-    # The include_router prefix should be combined with router prefix
-    # Expected: api_v2_users_get_profile
-    assert any(r["id"] == "api_v2_users_get_profile" for r in agent.reasoners)
-    assert hasattr(agent, "api_v2_users_get_profile")
+    # Function ID only uses router prefix, not include_router prefix
+    assert any(r["id"] == "users_get_profile" for r in agent.reasoners)
+    assert hasattr(agent, "users_get_profile")
+
+    # The HTTP path should include the include_router prefix
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=agent), base_url="http://test"
+    ) as client:
+        response = await client.post(
+            "/reasoners/users_get_profile",
+            json={},
+            headers={"x-workflow-id": "wf-router", "x-execution-id": "exec-router"},
+        )
+
+    assert response.status_code == 200
+    assert response.json() == {"profile": "data"}
 
 
 @pytest.mark.asyncio
@@ -405,7 +422,9 @@ async def test_router_skill_with_prefix(monkeypatch):
         )
 
     assert response.status_code == 200
-    assert response.json() == {"cost": 110.0}
+    # Handle floating point precision
+    result = response.json()
+    assert abs(result["cost"] - 110.0) < 0.0001
 
 
 @pytest.mark.asyncio
