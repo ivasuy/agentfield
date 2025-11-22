@@ -29,6 +29,7 @@ This test suite runs end-to-end functional tests in an isolated Docker environme
 - Python agents can register and communicate with the control plane
 - Reasoners execute successfully with real LLM calls (OpenRouter)
 - Execution metadata (workflow IDs, timing, etc.) is properly tracked
+- Quick Start documentation (README + docs) stays accurate end-to-end
 - Both storage modes (SQLite and PostgreSQL) work correctly
 
 ## 🏗️ Architecture
@@ -37,7 +38,8 @@ This test suite runs end-to-end functional tests in an isolated Docker environme
 tests/functional/
 ├── agents/                           # Reusable agent definitions
 │   ├── __init__.py
-│   └── quick_start_agent.py
+│   ├── docs_quick_start_agent.py     # Matches /docs/quick-start demo_echo flow
+│   └── quick_start_agent.py          # Mirrors README summarization example
 ├── docker/
 │   ├── docker compose.local.yml      # SQLite mode (fast)
 │   ├── docker compose.postgres.yml   # PostgreSQL mode (production-like)
@@ -46,7 +48,7 @@ tests/functional/
 │   └── wait-for-services.sh          # Health check script
 ├── tests/
 │   ├── test_hello_world.py           # Hello World functional test
-│   └── test_quick_start.py           # README Quick Start validation
+│   └── test_quick_start.py           # Docs + README Quick Start validations
 ├── utils/
 │   ├── __init__.py
 │   └── agent_server.py               # Shared run-agent helper
