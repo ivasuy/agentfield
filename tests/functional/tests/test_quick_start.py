@@ -15,8 +15,8 @@ from typing import Optional, Tuple
 
 import pytest
 
-from agents.quick_start_agent import create_agent
-from utils.agent_server import run_agent_server
+from agents.quick_start_agent import AGENT_SPEC, create_agent
+from utils import run_agent_server, unique_node_id
 
 
 QUICK_START_URL = os.environ.get("TEST_QUICK_START_URL")
@@ -88,7 +88,8 @@ async def test_quick_start_documentation_flow(
     else:
         content_server, content_thread, target_url = _start_example_domain_server()
 
-    agent = create_agent(openrouter_config)
+    node_id = unique_node_id(AGENT_SPEC.default_node_id)
+    agent = create_agent(openrouter_config, node_id=node_id)
 
     async with run_agent_server(agent):
         nodes_response = await async_http_client.get(f"/api/v1/nodes/{agent.node_id}")

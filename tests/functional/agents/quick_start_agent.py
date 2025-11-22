@@ -1,8 +1,9 @@
 """
 Agent definition that mirrors the README Quick Start example.
 
-Tests can import `create_agent` to obtain a fully configured Agent
-without needing to replicate the agent definition inline.
+Tests can import `AGENT_SPEC` + `create_agent` to obtain a fully configured Agent
+without replicating the agent definition inline. Each test can override the
+node_id to ensure distinct AgentField registrations when multiple nodes run.
 """
 
 from __future__ import annotations
@@ -13,19 +14,30 @@ from typing import Dict, Optional
 import requests
 from agentfield import AIConfig, Agent
 
-DEFAULT_NODE_ID = "quick-start-agent"
+from agents import AgentSpec
+
+AGENT_SPEC = AgentSpec(
+    key="quick_start",
+    display_name="Quick Start Reference Agent",
+    default_node_id="quick-start-agent",
+    description="Mirrors README Quick Start sample with fetch_url skill + summarize reasoner.",
+    reasoners=("summarize",),
+    skills=("fetch_url",),
+)
 
 
 def create_agent(
     ai_config: AIConfig,
     *,
-    node_id: str = DEFAULT_NODE_ID,
+    node_id: Optional[str] = None,
     callback_url: Optional[str] = None,
     **agent_kwargs,
 ) -> Agent:
     """
     Build the Quick Start agent with the canonical fetch_url + summarize flow.
     """
+    resolved_node_id = node_id or AGENT_SPEC.default_node_id
+
     agent_kwargs.setdefault("dev_mode", True)
     agent_kwargs.setdefault("callback_url", callback_url or "http://test-agent")
     agent_kwargs.setdefault(
@@ -33,18 +45,18 @@ def create_agent(
     )
 
     agent = Agent(
-        node_id=node_id,
+        node_id=resolved_node_id,
         ai_config=ai_config,
         **agent_kwargs,
     )
 
-    @agent.skill()
+    @agent.skill(name="fetch_url")
     def fetch_url(url: str) -> str:
         response = requests.get(url, timeout=10)
         response.raise_for_status()
         return response.text
 
-    @agent.reasoner()
+    @agent.reasoner(name="summarize")
     async def summarize(url: str) -> Dict[str, str]:
         """
         Fetch a URL, summarize it via OpenRouter, and return metadata.
@@ -82,6 +94,7 @@ def create_agent_from_env() -> Agent:
     """
     api_key = os.environ["OPENROUTER_API_KEY"]
     model = os.environ.get("OPENROUTER_MODEL", "openrouter/google/gemini-2.5-flash-lite")
+    node_id = os.environ.get("AGENT_NODE_ID")
 
     ai_config = AIConfig(
         model=model,
@@ -91,7 +104,10 @@ def create_agent_from_env() -> Agent:
         timeout=float(os.environ.get("OPENROUTER_TIMEOUT", "60.0")),
         retry_attempts=int(os.environ.get("OPENROUTER_RETRIES", "2")),
     )
-    return create_agent(ai_config)
+    return create_agent(ai_config, node_id=node_id)
+
+
+__all__ = ["AGENT_SPEC", "create_agent", "create_agent_from_env"]
 
 
 if __name__ == "__main__":

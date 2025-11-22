@@ -13,7 +13,7 @@ from typing import Dict
 
 import pytest
 
-from utils.agent_server import run_agent_server
+from utils import run_agent_server, unique_node_id
 
 
 @pytest.mark.functional
@@ -34,7 +34,7 @@ async def test_hello_world_with_openrouter(
     # Step 1: Create agent with OpenRouter configuration
     # ========================================================================
     agent = make_test_agent(
-        node_id="hello-world-agent",
+        node_id=unique_node_id("hello-world-agent"),
         ai_config=openrouter_config,
     )
     

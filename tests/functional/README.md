@@ -56,7 +56,13 @@ tests/functional/
 └── README.md                          # This file
 ```
 
-The `agents/` directory stores normal-looking AgentField nodes (complete with `if __name__ == "__main__"` hooks) that tests can import and run. Shared helpers such as the `run_agent_server` async context manager live in `utils/` so every test can start/stop agents the same way.
+The `agents/` directory stores normal-looking AgentField nodes (complete with `if __name__ == "__main__"` hooks) that tests can import and run. Each module exposes:
+
+- `AGENT_SPEC`: metadata about the node (display name, default node ID, reasoners, skills)
+- `create_agent(openrouter_config, **kwargs)`: returns a configured `Agent`
+- (optional) `create_agent_from_env()` so the agent can run as `python -m agents.xxx`
+
+Shared helpers such as the `run_agent_server` async context manager and `unique_node_id` live in `utils/` so every test can start/stop agents the same way without duplicating boilerplate.
 
 ### Test Flow
 
@@ -188,9 +194,13 @@ make test-functional-local
 
 ### Reusable Agent Nodes
 
-- Put canonical agent implementations in `agents/<name>_agent.py`. Each module should expose a `create_agent(openrouter_config, **kwargs)` helper (see `agents/quick_start_agent.py`).
-- Tests import those helpers, instantiate the agent (exactly like production code), and then spin it up with `utils.agent_server.run_agent_server`.
-- Agent modules can also be executed directly (`python -m agents.quick_start_agent`) because they expose a `create_agent_from_env` helper.
+- Put canonical agent implementations in `agents/<name>_agent.py`. Each module exposes:
+  - `AGENT_SPEC`: metadata (key, display name, default node ID, reasoners, skills)
+  - `create_agent(openrouter_config, **kwargs)`
+  - `create_agent_from_env()` for manual execution
+- Tests import `create_agent`, instantiate the agent (exactly like production code), and run it with `utils.run_agent_server`.
+- Use `utils.unique_node_id(AGENT_SPEC.default_node_id)` whenever you create an agent in a test. This ensures every test instance registers as a distinct AgentField node even when the underlying definition is shared.
+- Agent modules can also be executed directly (`python -m agents.quick_start_agent`) for smoke testing outside pytest.
 
 ### Basic Structure
 
@@ -206,7 +216,8 @@ async def test_my_feature(
     openrouter_config,
     async_http_client,
 ):
-    agent = create_agent(openrouter_config, node_id="my-test-agent")
+    node_id = unique_node_id(AGENT_SPEC.default_node_id)
+    agent = create_agent(openrouter_config, node_id=node_id)
 
     async with run_agent_server(agent):
         response = await async_http_client.post(
@@ -215,6 +226,12 @@ async def test_my_feature(
         )
         assert response.status_code == 200
         assert "result" in response.json()
+
+# Run a second agent simultaneously
+    other_id = unique_node_id("memory-agent")
+    other_agent = create_agent(openrouter_config, node_id=other_id)
+    async with run_agent_server(other_agent):
+        pass  # Add assertions for multi-agent coordination
 ```
 
 > `make_test_agent` is still available for quick experiments, but we recommend capturing production-like agents under `agents/` so they can be reused across multiple tests or even run manually.
