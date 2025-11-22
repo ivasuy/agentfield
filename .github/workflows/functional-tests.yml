@@ -89,12 +89,15 @@ jobs:
               --exit-code-from test-runner
           fi
       
-      - name: Collect functional logs
+      - name: Collect functional logs and reports
         if: always()
         run: |
           mkdir -p test-reports
           if [ -f tests/functional/logs/functional-tests.log ]; then
             cp tests/functional/logs/functional-tests.log test-reports/functional-tests-${{ matrix.storage_mode }}.log
+          fi
+          if [ -f tests/functional/junit-${{ matrix.storage_mode }}.xml ]; then
+            cp tests/functional/junit-${{ matrix.storage_mode }}.xml test-reports/
           fi
       
       - name: Upload test reports

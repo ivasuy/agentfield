@@ -56,11 +56,14 @@ test-functional-local:
 		exit 1; \
 	fi
 	mkdir -p test-reports tests/functional/logs
-	chmod -R 777 test-reports tests/functional/logs || true
+	chmod -R 777 tests/functional/logs || true
 	cd tests/functional && \
 		docker compose -f docker/docker-compose.local.yml up --build --abort-on-container-exit --exit-code-from test-runner
 	@if [ -f tests/functional/logs/functional-tests.log ]; then \
 		cp tests/functional/logs/functional-tests.log test-reports/functional-tests-local.log; \
+	fi
+	@if [ -f tests/functional/junit-local.xml ]; then \
+		cp tests/functional/junit-local.xml test-reports/; \
 	fi
 	$(MAKE) test-functional-cleanup-local
 
@@ -73,11 +76,14 @@ test-functional-postgres:
 		exit 1; \
 	fi
 	mkdir -p test-reports tests/functional/logs
-	chmod -R 777 test-reports tests/functional/logs || true
+	chmod -R 777 tests/functional/logs || true
 	cd tests/functional && \
 		docker compose -f docker/docker-compose.postgres.yml up --build --abort-on-container-exit --exit-code-from test-runner
 	@if [ -f tests/functional/logs/functional-tests.log ]; then \
 		cp tests/functional/logs/functional-tests.log test-reports/functional-tests-postgres.log; \
+	fi
+	@if [ -f tests/functional/junit-postgres.xml ]; then \
+		cp tests/functional/junit-postgres.xml test-reports/; \
 	fi
 	$(MAKE) test-functional-cleanup-postgres
 
