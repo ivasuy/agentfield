@@ -58,6 +58,9 @@ test-functional-local:
 	mkdir -p test-reports
 	cd tests/functional && \
 		docker compose -f docker/docker-compose.local.yml up --build --abort-on-container-exit --exit-code-from test-runner
+	@if [ -f tests/functional/logs/functional-tests.log ]; then \
+		cp tests/functional/logs/functional-tests.log test-reports/functional-tests-local.log; \
+	fi
 	$(MAKE) test-functional-cleanup-local
 
 test-functional-postgres:
@@ -71,6 +74,9 @@ test-functional-postgres:
 	mkdir -p test-reports
 	cd tests/functional && \
 		docker compose -f docker/docker-compose.postgres.yml up --build --abort-on-container-exit --exit-code-from test-runner
+	@if [ -f tests/functional/logs/functional-tests.log ]; then \
+		cp tests/functional/logs/functional-tests.log test-reports/functional-tests-postgres.log; \
+	fi
 	$(MAKE) test-functional-cleanup-postgres
 
 test-functional-cleanup: test-functional-cleanup-local test-functional-cleanup-postgres

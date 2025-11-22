@@ -46,6 +46,9 @@ def _init_session_logger() -> FunctionalTestLogger:
         except OSError:
             continue
 
+    retention_seconds = int(os.environ.get("FUNCTIONAL_LOG_RETENTION_SECONDS", "172800"))
+    _prune_old_logs(log_path.parent, retention_seconds)
+
     max_chars = int(os.environ.get("FUNCTIONAL_LOG_MAX_BODY", "600"))
     return FunctionalTestLogger(log_file=log_path, max_body_chars=max_chars)
 
@@ -133,6 +136,29 @@ def verify_control_plane(control_plane_url: str, functional_logger: FunctionalTe
 
     functional_logger.log("Control plane did not respond to health checks in time")
     pytest.fail(f"Control plane at {control_plane_url} is not responding to health checks")
+
+
+def _prune_old_logs(directory: Path, retention_seconds: int) -> None:
+    """Remove log files older than the configured retention period."""
+
+    if retention_seconds <= 0:
+        return
+
+    now = time.time()
+    try:
+        directory.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        return
+
+    for log_path in directory.glob("*.log"):
+        try:
+            if now - log_path.stat().st_mtime > retention_seconds:
+                try:
+                    log_path.unlink()
+                except FileNotFoundError:
+                    continue
+        except OSError:
+            continue
 
 
 # ============================================================================
