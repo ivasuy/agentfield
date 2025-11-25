@@ -1,0 +1,30 @@
+import axios, { AxiosInstance } from 'axios';
+import type { AgentConfig, HealthStatus } from '../types/agent.js';
+
+export class AgentFieldClient {
+  private readonly http: AxiosInstance;
+  private readonly config: AgentConfig;
+
+  constructor(config: AgentConfig) {
+    const baseURL = (config.agentFieldUrl ?? 'http://localhost:8080').replace(/\/$/, '');
+    this.http = axios.create({ baseURL });
+    this.config = config;
+  }
+
+  async register(reasoners: string[], skills: string[]) {
+    await this.http.post('/api/v1/nodes/register', {
+      nodeId: this.config.nodeId,
+      version: this.config.version,
+      reasoners,
+      skills,
+      publicUrl: this.config.publicUrl
+    });
+  }
+
+  async heartbeat(): Promise<HealthStatus> {
+    const res = await this.http.get('/api/v1/nodes/heartbeat', {
+      params: { nodeId: this.config.nodeId }
+    });
+    return res.data as HealthStatus;
+  }
+}
