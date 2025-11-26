@@ -79,7 +79,9 @@ class DocumentContext(BaseModel):
 class Citation(BaseModel):
     """Citation metadata for rendering inline references."""
 
-    key: str
+    key: str = Field(
+        description="Single letter key without brackets (e.g., 'A', 'B', 'AA'). Do NOT include square brackets."
+    )
     relative_path: str
     start_line: int
     end_line: int
@@ -96,7 +98,8 @@ class DocAnswer(BaseModel):
 
     answer: str = Field(description="Markdown answer with inline citations like [A][B]")
     citations: List[Citation] = Field(
-        description="Full citation details for references"
+        default_factory=list,
+        description="Leave empty - citations are injected by the system",
     )
     confidence: str = Field(
         description="Answer confidence: 'high', 'partial', or 'insufficient'"
