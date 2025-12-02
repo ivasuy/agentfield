@@ -432,3 +432,63 @@ class TestAPIKeyPrecedence:
         assert headers["X-API-Key"] == "exec-key"
         assert "Content-Type" in headers
         assert "X-Run-ID" in headers
+
+
+class TestAgentAPIKey:
+    """Test API key exposure at Agent and AgentRouter level."""
+
+    def test_agent_stores_api_key(self):
+        """Agent should store the API key and pass it to the client."""
+        from agentfield.agent import Agent
+
+        agent = Agent(node_id="test-agent", api_key="agent-secret-key")
+
+        assert agent.api_key == "agent-secret-key"
+        assert agent.client.api_key == "agent-secret-key"
+
+    def test_agent_without_api_key(self):
+        """Agent should work without an API key."""
+        from agentfield.agent import Agent
+
+        agent = Agent(node_id="test-agent")
+
+        assert agent.api_key is None
+        assert agent.client.api_key is None
+
+    def test_router_delegates_api_key_to_agent(self):
+        """AgentRouter should delegate api_key access to attached agent."""
+        from agentfield.agent import Agent
+        from agentfield.router import AgentRouter
+
+        agent = Agent(node_id="test-agent", api_key="router-test-key")
+        router = AgentRouter(prefix="/test")
+
+        agent.include_router(router)
+
+        # Router should delegate api_key to the agent
+        assert router.api_key == "router-test-key"
+        # Router should also delegate client access
+        assert router.client.api_key == "router-test-key"
+
+    def test_router_delegates_client_to_agent(self):
+        """AgentRouter should delegate client access to attached agent."""
+        from agentfield.agent import Agent
+        from agentfield.router import AgentRouter
+
+        agent = Agent(node_id="test-agent", api_key="client-test-key")
+        router = AgentRouter(prefix="/test")
+
+        agent.include_router(router)
+
+        # Router's client should be the same as agent's client
+        assert router.client is agent.client
+        assert router.client._get_auth_headers() == {"X-API-Key": "client-test-key"}
+
+    def test_unattached_router_raises_error(self):
+        """AgentRouter should raise error when accessing api_key without agent."""
+        from agentfield.router import AgentRouter
+
+        router = AgentRouter(prefix="/test")
+
+        with pytest.raises(RuntimeError, match="Router not attached to an agent"):
+            _ = router.api_key
