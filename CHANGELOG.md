@@ -6,6 +6,87 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 <!-- changelog:entries -->
 
+## [0.1.15] - 2025-12-03
+
+
+### Fixed
+
+- Fix(python-sdk): update test mocks for api_key parameter
+
+Update test helpers and mocks to accept the new api_key parameter:
+- Add api_key field to StubAgent dataclass
+- Add api_key parameter to _FakeDIDManager and _FakeVCGenerator
+- Add headers parameter to VC generator test mocks
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-Authored-By: Claude <noreply@anthropic.com> (301e276)
+
+- Fix(python-sdk): add missing API key headers to DID/VC and workflow methods
+
+Comprehensive fix for API key authentication across all SDK HTTP requests:
+
+DID Manager (did_manager.py):
+- Added api_key parameter to __init__
+- Added _get_auth_headers() helper method
+- Fixed register_agent() to include X-API-Key header
+- Fixed resolve_did() to include X-API-Key header
+
+VC Generator (vc_generator.py):
+- Added api_key parameter to __init__
+- Added _get_auth_headers() helper method
+- Fixed generate_execution_vc() to include X-API-Key header
+- Fixed verify_vc() to include X-API-Key header
+- Fixed get_workflow_vc_chain() to include X-API-Key header
+- Fixed create_workflow_vc() to include X-API-Key header
+- Fixed export_vcs() to include X-API-Key header
+
+Agent Field Handler (agent_field_handler.py):
+- Fixed _send_heartbeat() to include X-API-Key header
+
+Agent (agent.py):
+- Fixed emit_workflow_event() to include X-API-Key header
+- Updated _initialize_did_system() to pass api_key to DIDManager and VCGenerator
+
+All HTTP requests to AgentField control plane now properly include authentication headers when API key is configured.
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-Authored-By: Claude <noreply@anthropic.com> (2517549)
+
+- Fix(python-sdk): add missing API key headers to sync methods
+
+Add authentication headers to register_node(), update_health(), and
+get_nodes() methods that were missing X-API-Key headers in requests.
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-Authored-By: Claude <noreply@anthropic.com> (0c2977d)
+
+
+
+### Other
+
+- Add Go SDK CallLocal workflow tracking (64c6217)
+
+- Fix Python SDK to include API key in register/heartbeat requests
+
+The SDK's AgentFieldClient stored the api_key but several methods were
+not including it in their HTTP requests, causing 401 errors when
+authentication is enabled on the control plane:
+
+- register_agent()
+- register_agent_with_status()
+- send_enhanced_heartbeat() / send_enhanced_heartbeat_sync()
+- notify_graceful_shutdown() / notify_graceful_shutdown_sync()
+
+Also updated documentation-chatbot example to pass AGENTFIELD_API_KEY
+from environment to the Agent constructor.
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-Authored-By: Claude <noreply@anthropic.com> (1e6a095)
+
 ## [0.1.14] - 2025-12-03
 
 
