@@ -6,6 +6,71 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 <!-- changelog:entries -->
 
+## [0.1.21-rc.1] - 2025-12-06
+
+
+### Other
+
+- Add serverless agent examples and functional tests (#46)
+
+* Add serverless agent examples and functional tests
+
+* Add CLI support for serverless node registration
+
+* Fix serverless execution payload initialization
+
+* Harden serverless functional test to use CLI registration
+
+* Broaden serverless CLI functional coverage
+
+* Persist serverless invocation URLs
+
+* Ensure serverless executions hit /execute
+
+* Fix serverless agent metadata loading
+
+* Derive serverless deployment for stored agents
+
+* Honor serverless metadata during execution
+
+* Backfill serverless invocation URLs on load
+
+* Stabilize serverless agent runtime
+
+* Harden serverless functional harness
+
+* Support serverless agents via reasoners endpoint
+
+* Log serverless reasoner responses for debugging
+
+* Allow custom serverless adapters across SDKs
+
+* Normalize serverless handler responses
+
+* Fix Python serverless adapter typing
+
+* Make serverless adapter typing py3.9-safe
+
+* Fix Python serverless execution context
+
+* Simplify Python serverless calls to sync
+
+* Mark serverless Python agents connected for cross-calls
+
+* Force sync execution path in serverless handler
+
+* Handle serverless execute responses without result key
+
+* Align serverless Python relay args with child signature
+
+* feat: Add workflow performance visualizations, including agent health heatmap and execution scatter plot, and enhance UI mobile responsiveness.
+
+* chore: Remove unused Badge import from ExecutionScatterPlot.tsx and add an empty line to .gitignore. (728e4e0)
+
+- Added docker (74f111b)
+
+- Update README.md (8b580cb)
+
 ## [0.1.20] - 2025-12-04
 
 ## [0.1.20-rc.3] - 2025-12-04
