@@ -6,6 +6,76 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 <!-- changelog:entries -->
 
+## [0.1.24-rc.3] - 2025-12-18
+
+
+### Chores
+
+- Chore(rag-eval): update default model to GPT-4o (#85)
+
+- Set GPT-4o as default (reliable JSON output)
+- Gemini 2.5 Flash as second option
+- Move DeepSeek to last (can timeout)
+- Remove old Gemini 2.0 Flash
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-authored-by: Claude Opus 4.5 <noreply@anthropic.com> (f49959a)
+
+
+
+### Documentation
+
+- Docs: Add cross-reference links to RAG evaluator documentation (#83)
+
+- Add docs link in examples/README.md table for rag_evaluation
+- Add documentation callout in rag_evaluation/README.md
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-authored-by: Claude Opus 4.5 <noreply@anthropic.com> (e51b8d4)
+
+- Docs: Add website deployment guide links (#82)
+
+Reference the full deployment guides at agentfield.ai for Kubernetes
+and Helm deployment options.
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-authored-by: Claude Opus 4.5 <noreply@anthropic.com> (59eaf7f)
+
+
+
+### Other
+
+- Fix parent-child workflow tracking for direct reasoner calls via AgentRouter (#86)
+
+* Fix parent-child workflow tracking for direct reasoner calls via AgentRouter
+
+When reasoners registered via AgentRouter call other reasoners directly
+(as normal async functions), the parent-child relationship was not being
+captured in the workflow DAG. This happened because:
+
+1. @router.reasoner() stored the original function but returned it unchanged
+2. When include_router() later wrapped functions with tracking, closures in
+   other reasoners still held references to the original unwrapped functions
+3. Direct calls bypassed the tracked wrapper entirely
+
+This fix implements lazy-binding in AgentRouter.reasoner():
+- The decorator now returns a wrapper that looks up the tracked function
+  at call time via router._tracked_functions
+- include_router() registers tracked functions in this lookup table
+- Direct reasoner-to-reasoner calls now go through the tracked wrapper,
+  enabling proper parent_execution_id propagation
+
+Changes:
+- router.py: Add lazy-binding wrapper in reasoner() decorator
+- agent.py: Register tracked functions in router._tracked_functions
+- test_router.py: Update tests for new wrapper behavior
+- test_workflow_parent_child.py: Add comprehensive tests for parent-child tracking
+
+* Remove unused imports in test_workflow_parent_child.py (342af92)
+
 ## [0.1.24-rc.2] - 2025-12-17
 
 
