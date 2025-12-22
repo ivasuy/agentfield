@@ -394,7 +394,7 @@ If you are **Backend Engineers** shipping AI into production who want standard A
 
 ## Learn More
 
-- 📖 **[The AI Backend](https://agentfield.ai/blog/ai-backend)** — Why every backend needs a reasoning layer
+- 📖 **[The AI Backend](https://agentfield.ai/blog/posts/ai-backend)** — Why every backend needs a reasoning layer
 - 📖 **[IAM for AI Backends](https://agentfield.ai/blog/posts/iam-ai-backends)** — Why agents need identity, not just API keys
 - 📚 **[Documentation](https://agentfield.ai/docs)** — Full technical reference
 - 🚀 **[Examples](https://agentfield.ai/examples)** — Production patterns and use cases
