@@ -280,8 +280,11 @@ func (sm *StatusManager) GetAgentStatusSnapshot(ctx context.Context, nodeID stri
 
 // UpdateAgentStatus updates the agent status with reconciliation
 func (sm *StatusManager) UpdateAgentStatus(ctx context.Context, nodeID string, update *types.AgentStatusUpdate) error {
-	// Get current status
-	currentStatus, err := sm.GetAgentStatus(ctx, nodeID)
+	// Get current status using snapshot (no live health check) to preserve the true "old" state
+	// for event broadcasting. Using GetAgentStatus here would perform a live health check,
+	// which could return the same state as the update, causing oldStatus == newStatus
+	// and preventing status change events from being broadcast.
+	currentStatus, err := sm.GetAgentStatusSnapshot(ctx, nodeID, nil)
 	if err != nil {
 		return fmt.Errorf("failed to get current status: %w", err)
 	}
@@ -521,9 +524,18 @@ func (sm *StatusManager) broadcastStatusEvents(nodeID string, oldStatus, newStat
 		return
 	}
 
-	// FIXED: Only broadcast ONE unified status change event to prevent spam
-	// This single event contains all the necessary information for the frontend
-	events.PublishNodeUnifiedStatusChanged(nodeID, oldStatus, newStatus, string(newStatus.Source), "status update")
+	// FIXED: Only broadcast unified status event when there's a MEANINGFUL change
+	// Skip events for minor health score fluctuations - only emit when:
+	// - State changed (active/inactive/starting/stopping)
+	// - LifecycleStatus changed (ready/not_ready/etc)
+	// - HealthStatus changed (active/degraded/unhealthy)
+	hasMeaningfulChange := oldStatus.State != newStatus.State ||
+		oldStatus.LifecycleStatus != newStatus.LifecycleStatus ||
+		oldStatus.HealthStatus != newStatus.HealthStatus
+
+	if hasMeaningfulChange {
+		events.PublishNodeUnifiedStatusChanged(nodeID, oldStatus, newStatus, string(newStatus.Source), "status update")
+	}
 
 	// FIXED: Only broadcast legacy events if specifically needed for backward compatibility
 	// and only if state actually changed to prevent duplicate events
